@@ -16,6 +16,10 @@ on:
         required: false
         default: false
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   actions: read
   packages: read
@@ -94,7 +98,7 @@ jobs:
         do
           echo "Waiting for container to be ready..."
         done
-        sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
+        sudo docker exec $CID sh -c "dnf install -y dist/rpms/*rpm"
         export PASSWD=$(openssl rand -base64 32)
         sudo docker exec $CID sh -c "echo \"${PASSWD}\" | passwd --stdin root"
         sudo docker exec $CID sh -c "systemctl start dbus.service"
