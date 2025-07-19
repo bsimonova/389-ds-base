@@ -5599,6 +5599,7 @@ int slapi_get_supported_controls_copy(char ***ctrloidsp,
                                       unsigned long **ctrlopsp);
 int slapi_build_control(char *oid, BerElement *ber, char iscritical, LDAPControl **ctrlp);
 int slapi_build_control_from_berval(char *oid, struct berval *bvp, char iscritical, LDAPControl **ctrlp);
+int create_sessiontracking_ctrl(const char *session_tracking_id, LDAPControl **session_tracking_ctrl);
 
 /* Given an array of controls e.g. LDAPControl **ctrls, add the given
    control to the end of the array, growing the array with realloc
@@ -5813,7 +5814,7 @@ char *slapi_ch_malloc(unsigned long size) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_memalign(uint32_t size, uint32_t alignment) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_realloc(char *block, unsigned long size) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_calloc(unsigned long nelem, unsigned long size) __ATTRIBUTE__((returns_nonnull));
-char *slapi_ch_strdup(const char *s) __ATTRIBUTE__((returns_nonnull));
+char *slapi_ch_strdup(const char *s);
 void slapi_ch_free(void **ptr);
 void slapi_ch_free_string(char **s);
 struct berval *slapi_ch_bvdup(const struct berval *);
@@ -5956,6 +5957,7 @@ void slapi_add_entry_internal_set_pb(Slapi_PBlock *pb, Slapi_Entry *e, LDAPContr
 int slapi_add_internal_set_pb(Slapi_PBlock *pb, const char *dn, LDAPMod **attrs, LDAPControl **controls, Slapi_ComponentId *plugin_identity, int operation_flags);
 void slapi_modify_internal_set_pb(Slapi_PBlock *pb, const char *dn, LDAPMod **mods, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
 void slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mods, LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags);
+int slapi_single_modify_internal_override(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mod, Slapi_ComponentId *plugin_identity, int operation_flags);
 /**
  * Set \c Slapi_PBlock to perform modrdn/rename internally
  *

@@ -11,19 +11,6 @@
 
     TODO put them in a module!
 """
-try:
-    from subprocess import Popen as my_popen, PIPE
-except ImportError:
-    from popen2 import popen2
-
-    def my_popen(cmd_l, stdout=None):
-        class MockPopenResult(object):
-            def wait(self):
-                pass
-        p = MockPopenResult()
-        p.stdout, p.stdin = popen2(cmd_l)
-        return p
-
 import json
 import re
 import os
@@ -33,6 +20,7 @@ import shutil
 import ldap
 import mmap
 import socket
+import ipaddress
 import time
 import stat
 from datetime import (datetime, timedelta)
@@ -858,7 +846,7 @@ def isLocalHost(host_name):
 
     # next, see if this IP addr is one of our
     # local addresses
-    p = my_popen(['/sbin/ip', 'addr'], stdout=PIPE)
+    p = subprocess.Popen(['/sbin/ip', 'addr'], stdout=subprocess.PIPE)
     child_stdout = p.stdout.read()
     found = ('inet %s' % ip_addr).encode() in child_stdout
     p.wait()
@@ -1713,6 +1701,45 @@ def is_valid_hostname(hostname):
     allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
+def is_valid_ip(ip):
+    """ Validate an IPv4 or IPv6 address, including asterisks for wildcards. """
+    if '*' in ip and '.' in ip:
+        ipv4_pattern = r'^(\d{1,3}|\*)\.(\d{1,3}|\*)\.(\d{1,3}|\*)\.(\d{1,3}|\*)$'
+        if re.match(ipv4_pattern, ip):
+            octets = ip.split('.')
+            for octet in octets:
+                if octet != '*':
+                    try:
+                        val = int(octet, 10)
+                        if not (0 <= val <= 255):
+                            return False
+                    except ValueError:
+                        return False
+            return True
+        else:
+            return False
+
+    if '*' in ip and ':' in ip:
+        ipv6_pattern = r'^([0-9a-fA-F]{1,4}|\*)(:([0-9a-fA-F]{1,4}|\*)){0,7}$'
+        if re.match(ipv6_pattern, ip):
+            octets = ip.split(':')
+            for octet in octets:
+                if octet != '*':
+                    try:
+                        val = int(octet, 16)
+                        if not (0 <= val <= 0xFFFF):
+                            return False
+                    except ValueError:
+                        return False
+            return True
+        else:
+            return False
+
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False
 
 def parse_size(size):
     """

@@ -198,7 +198,7 @@ export class Database extends React.Component {
         });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "config", "get", "nsslapd-ndn-cache-max-size"
+            "config", "get", "nsslapd-ndn-cache-max-size", "nsslapd-ndn-cache-enabled"
         ];
         log_cmd("loadNDN", "Load NDN cache size", cmd);
         cockpit
@@ -206,10 +206,12 @@ export class Database extends React.Component {
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
+                    const ndn_cache_enabled = attrs['nsslapd-ndn-cache-enabled'][0] === "on";
                     this.setState(prevState => ({
                         globalDBConfig: {
                             ...prevState.globalDBConfig,
                             ndncachemaxsize: attrs['nsslapd-ndn-cache-max-size'][0],
+                            ndn_cache_enabled: ndn_cache_enabled,
                         },
                         configUpdated: 0,
                         loaded: true,
@@ -478,6 +480,59 @@ export class Database extends React.Component {
     }
 
     loadSuffixTree(fullReset) {
+        const treeData = [
+            {
+                name: _("Global Database Configuration"),
+                icon: <CogIcon />,
+                id: "dbconfig",
+            },
+            {
+                name: _("Chaining Configuration"),
+                icon: <ExternalLinkAltIcon />,
+                id: "chaining-config",
+            },
+            {
+                name: _("Backups & LDIFs"),
+                icon: <CopyIcon />,
+                id: "backups",
+            },
+            {
+                name: _("Password Policies"),
+                id: "pwp",
+                icon: <KeyIcon />,
+                children: [
+                    {
+                        name: _("Global Policy"),
+                        icon: <HomeIcon />,
+                        id: "pwpolicy",
+                    },
+                    {
+                        name: _("Local Policies"),
+                        icon: <UsersIcon />,
+                        id: "localpwpolicy",
+                    },
+                ],
+                defaultExpanded: true
+            },
+            {
+                name: _("Suffixes"),
+                icon: <CatalogIcon />,
+                id: "suffixes-tree",
+                children: [],
+                defaultExpanded: true,
+                action: (
+                    <Button
+                        onClick={this.handleShowSuffixModal}
+                        variant="plain"
+                        aria-label="Create new suffix"
+                        title={_("Create new suffix")}
+                    >
+                        <PlusIcon />
+                    </Button>
+                ),
+            }
+        ];
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "get-tree",
@@ -491,58 +546,20 @@ export class Database extends React.Component {
                         suffixData = JSON.parse(content);
                         this.processTree(suffixData);
                     }
-                    const treeData = [
-                        {
-                            name: _("Global Database Configuration"),
-                            icon: <CogIcon />,
-                            id: "dbconfig",
-                        },
-                        {
-                            name: _("Chaining Configuration"),
-                            icon: <ExternalLinkAltIcon />,
-                            id: "chaining-config",
-                        },
-                        {
-                            name: _("Backups & LDIFs"),
-                            icon: <CopyIcon />,
-                            id: "backups",
-                        },
-                        {
-                            name: _("Password Policies"),
-                            id: "pwp",
-                            icon: <KeyIcon />,
-                            children: [
-                                {
-                                    name: _("Global Policy"),
-                                    icon: <HomeIcon />,
-                                    id: "pwpolicy",
-                                },
-                                {
-                                    name: _("Local Policies"),
-                                    icon: <UsersIcon />,
-                                    id: "localpwpolicy",
-                                },
-                            ],
-                            defaultExpanded: true
-                        },
-                        {
-                            name: _("Suffixes"),
-                            icon: <CatalogIcon />,
-                            id: "suffixes-tree",
-                            children: suffixData,
-                            defaultExpanded: true,
-                            action: (
-                                <Button
-                                    onClick={this.handleShowSuffixModal}
-                                    variant="plain"
-                                    aria-label="Create new suffix"
-                                    title={_("Create new suffix")}
-                                >
-                                    <PlusIcon />
-                                </Button>
-                            ),
-                        }
-                    ];
+
+                    let current_node = this.state.node_name;
+                    if (fullReset) {
+                        current_node = DB_CONFIG;
+                    }
+
+                    treeData[4].children = suffixData; // suffixes node
+                    this.setState(() => ({
+                        nodes: treeData,
+                        node_name: current_node,
+                    }), this.loadAttrs);
+                })
+                .fail(err => {
+                    // Handle backend get-tree failure gracefully
                     let current_node = this.state.node_name;
                     if (fullReset) {
                         current_node = DB_CONFIG;
